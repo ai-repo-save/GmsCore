@@ -437,6 +437,9 @@ def main() -> None:
     if zipfile.is_zipfile(apk_path):
         with zipfile.ZipFile(apk_path) as archive:
             libraries = [name for name in archive.namelist() if name.endswith(".so")]
+            for name in libraries:
+                target = destination / Path(name).name
+                target.write_bytes(archive.read(name))
     record = {
         "vm_key": vm_key,
         "flow": args.flow,
