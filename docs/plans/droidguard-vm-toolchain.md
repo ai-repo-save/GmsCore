@@ -10,14 +10,15 @@ Java 壳是宿主 ABI。虚拟机在 so 里。指令编号被打乱时，只重�
 
 ## 已接入的 Cursor MCP
 
-全局 `~/.cursor/mcp.json` 已增加与 `tiktok-rec/.cursor/mcp.json` 相同的两项：
+全局 `~/.cursor/mcp.json` 与 `tiktok-rec/.cursor/mcp.json` 对齐：
 
 - `ida-pro-mcp`：`/usr/bin/python3.12 /home/bluebird/git/ida-pro-mcp/src/ida_pro_mcp/server.py`，`IDADIR=/home/bluebird/ida-pro-9.2`
 - `unidbg-mcp`：`uv --directory /home/bluebird/git/tiktok-rec/tools/unidbg-mcp run unidbg-mcp`
+- `trace-ui`：`/home/bluebird/bin/trace-cli`
 
 garlic 已经在同一文件里。Ghidra 不走 MCP，走版本工程的 `scripts/`。
 
-Cursor 需要重新加载 MCP 后，本会话才能看到 `ida-pro-mcp` 和 `unidbg-mcp`。
+Cursor 需要重新加载 MCP 后，本会话才能看到 `ida-pro-mcp`、`unidbg-mcp` 和 `trace-ui`。
 
 ## 工具与职责
 
@@ -26,6 +27,7 @@ Cursor 需要重新加载 MCP 后，本会话才能看到 `ida-pro-mcp` 和 `uni
 | garlic | 已配置 | 读 `the.apk` 的 Java：`com.google.ccc.abuse.droidguard.DroidGuard` 的 `init`、`ss`、`rb`，以及 JNI |
 | ida-pro-mcp | 见上 | `open_binary` 打开 so，反编译 opcode handler，记录入口、分发表、landing、宿主调用 |
 | unidbg-mcp | 见上 | 单 opcode 执行。断点打在 IDA 给出的 handler。动态结果只证明当前样本路径 |
+| trace-ui | 见上 | 读 unidbg 打出的指令 trace。格式与 tiktok-rec 的 `[module] 0xpc!0xrva` 相同 |
 | Ghidra 工程 | 新建，结构抄 `tiktok-rec/tools/ghidra-metasec-vm-v05.02.09-alpha.3` | 版本语言、p-code、伪代码、e2e |
 | Ghidra 源码依据 | `/home/bluebird/git/ghidra-upstream` | 不把反编译输出当源码 |
 
