@@ -37,7 +37,7 @@ Ghidra 工程放在 `~/git/` 下的独立仓库，不放进 GmsCore。一个 so 
 
 `scripts/fetch-droidguard-vm.py` 按 `NetworkHandleProxyFactory.fetchFromServer` 向 `androidantiabuse/v1/x/create` 发 protobuf，用 `SignatureVerifier` 的公钥验签，把 `Response.content` 写成 `cache/droidguard/<vmKey>/the.apk`。同时写出 `bytecode`、`extra` 和 `the.json`。`cache/` 不入库。
 
-请求里的版本用官方 GMS 25.24.31 的 `25.24.31 (260400-{{cl}})` 和 versionCode `252431035`。droidguard 库自己的 `20.47.14` 会被服务端以 precondition 拒绝。请求字段按 GMS 25.24.31 的 `fwns`：usage、设备键值、versionName、isGoogleCn、enableInlineVm、versionCode、arch。不发送 microG proto 里的 `hasAccount`。
+请求与 `NetworkHandleProxyFactory.createRequest` 一致。`versionName` 是 `VersionUtil.versionString`，即 `20.47.14 (<buildType>-{{cl}})`。请求体里的 `versionCode` 是库的 `BuildConfig.VERSION_CODE` `204714000`。`User-Agent` 是 `DroidGuard/` 加上 `VersionUtil.versionCode`，也就是 `204714000` 再加 build type 偏移。字段包含 `hasAccount=false`。不附加 `X-Android-Package` 或证书头。flow 由调用方传入；取虚拟机本体时用 `full`。
 
 类名是 `com.google.ccc.abuse.droidguard.DroidGuard`。so 文件名在 apk 内的 `library.txt`。记录 apk 与 so 的 SHA-256 之后再写 opcode 地址。
 

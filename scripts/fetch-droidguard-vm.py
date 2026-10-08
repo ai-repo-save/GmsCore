@@ -40,10 +40,10 @@ PUBLIC_KEY = (
     "E776Dn6QoYbhN5jPeVBp7lDD3UxjfVzTxKKDAome6fUVBop3dpcLM6rq3+nNT2YArgqTD1"
     "qtsVM9vHlcLaAYaPg82vtIN80iDUseMlVHgK+nf6wIDAQAB"
 )
-# GMS 25.24.31 sends this pair. The droidguard library's own 20.47.14 is rejected.
-DEFAULT_VERSION_NAME = "25.24.31 (260400-{{cl}})"
-DEFAULT_VERSION_CODE = 252431035
-GMS_CERT_SHA1 = "2169EDDB5FBB1FDF241C262681024692C4FC1ECB"
+# play-services-droidguard/core defaultConfig. The body uses VERSION_CODE as-is.
+# User-Agent uses VersionUtil.versionCode, which adds the build-type offset.
+LIBRARY_VERSION_NAME = "20.47.14"
+LIBRARY_VERSION_CODE = 204714000
 DEFAULT_PROXY = "http://127.0.0.1:7891"
 
 # Same table and index rule as VersionUtil.BUILD_MAP / getVersionOffset.
@@ -295,6 +295,7 @@ def encode_request(
         pair = proto_string(1, key_name) + proto_string(2, value)
         body += proto_bytes(2, pair)
     body += proto_string(3, version_name)
+    body += proto_bool(6, False)
     body += proto_bool(7, False)
     body += proto_bool(8, True)
     body += proto_int(13, version_code)
@@ -320,11 +321,18 @@ def parser() -> argparse.ArgumentParser:
         description="Download a DroidGuard VM the.apk from androidantiabuse."
     )
     argument_parser.add_argument(
-        "--flow", default="full", help="Usage.flow sent to create (default: full)"
+        "--flow",
+        default="full",
+        help="Usage.flow. The VM download path uses full (default: full)",
     )
-    argument_parser.add_argument("--version-name", default=DEFAULT_VERSION_NAME)
     argument_parser.add_argument(
-        "--version-code", type=int, default=DEFAULT_VERSION_CODE
+        "--version-name",
+        help="Override versionName. Default is VersionUtil.versionString for --sdk/--abi/--dpi",
+    )
+    argument_parser.add_argument(
+        "--version-code",
+        type=int,
+        help="Override the versionCode field. Default is the droidguard library versionCode, without the User-Agent offset",
     )
     argument_parser.add_argument(
         "--package", default="com.google.android.gms", help="Usage.packageName"
@@ -374,11 +382,17 @@ def parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = parser().parse_args()
     typed = build_type(args.sdk, args.abi, args.dpi)
-    version_code = args.version_code
-    request = encode_request(args, args.version_name, version_code)
+    offset = version_offset(typed) or 0
+    version_name = args.version_name or f"{LIBRARY_VERSION_NAME} ({typed}-{{{{cl}}}})"
+    version_code = (
+        args.version_code if args.version_code is not None else LIBRARY_VERSION_CODE
+    )
+    user_agent_code = version_code + (0 if args.version_code is not None else offset)
+    request = encode_request(args, version_name, version_code)
     log(
-        f"request flow={args.flow} version_name={args.version_name} "
-        f"version_code={version_code} device_build_type={typed} bytes={len(request)}"
+        f"request flow={args.flow} version_name={version_name} "
+        f"version_code={version_code} user_agent=DroidGuard/{user_agent_code} "
+        f"device_build_type={typed} bytes={len(request)}"
     )
     http = opener(None if args.no_proxy else args.proxy)
     req = urllib.request.Request(
@@ -386,9 +400,7 @@ def main() -> None:
         data=request,
         headers={
             "Content-Type": "application/x-protobuf",
-            "User-Agent": f"DroidGuard/{version_code}",
-            "X-Android-Package": "com.google.android.gms",
-            "X-Android-Cert": GMS_CERT_SHA1,
+            "User-Agent": f"DroidGuard/{user_agent_code}",
         },
         method="POST",
     )
@@ -446,7 +458,8 @@ def main() -> None:
         "package": args.package,
         "device_build_type": typed,
         "version_code": version_code,
-        "version_name": args.version_name,
+        "user_agent_code": user_agent_code,
+        "version_name": version_name,
         "apk": str(apk_path),
         "apk_sha256": hashlib.sha256(apk_path.read_bytes()).hexdigest(),
         "apk_bytes": apk_path.stat().st_size,
